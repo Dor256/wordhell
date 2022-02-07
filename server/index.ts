@@ -29,6 +29,17 @@ app.get('/words', async () => {
     .map((word) => word.toLowerCase());
 });
 
+app.get('/word', async () => {
+  const dictionary = await dictionaryPromise;
+  const processedDictionary = dictionary
+    .split('\n')
+    .filter((word) => word.length === 5)
+    .map((word) => word.toLowerCase());
+
+  const random = Math.floor(Math.random() * (processedDictionary.length - 1));
+  return processedDictionary[random];
+});
+
 app.listen(3000, (_, err) => {
   app.log.info('Server is running on port 3000');
   if (err) {
