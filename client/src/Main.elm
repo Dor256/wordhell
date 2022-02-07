@@ -33,7 +33,8 @@ update : Msg -> Model -> (Model, Cmd msg)
 update msg model =
     case msg of
         FetchWord (Ok res) ->
-            ({ model | word = res }, Cmd.none) 
+            ({ model | word = res }, Cmd.none)
+
         FetchWord (Err _) ->
             (model, Cmd.none)
 
