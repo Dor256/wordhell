@@ -6,7 +6,7 @@ import { readFile } from 'fs';
 
 const readFileAsync = promisify(readFile);
 
-const dictionaryPromise = readFileAsync('./words', { encoding: 'utf-8' });
+const dictionaryPromise = readFileAsync('./words.txt', { encoding: 'utf-8' });
 
 const app = Fastify({
   logger: true

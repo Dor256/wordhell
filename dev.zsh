@@ -1,3 +1,3 @@
 #!/bin/zsh
 
-./build.zsh && cd server && yarn start && cd ..
+cd client && elm make src/Main.elm --output dist/index.js && cd .. && cd server && yarn start && cd ..

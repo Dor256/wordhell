@@ -6,26 +6,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wordhell</title>
   <script type="text/javascript" src="client/dist/index.js"></script>
-  <style>
-    html, body {
-      height: 100vh;
-    }
-  </style>
 </head>
-<body id="root">
-<script>
-    const app = Elm.Main.init({
-    node: document.getElementById('root')
-  });
+<body>
+  <div id="root">
 
-  app.ports.saveString.subscribe(function ([key, value]) {
-    localStorage.setItem(key, value);
-  });
+  </div>
+  <script>
+      const app = Elm.Main.init({
+      node: document.getElementById('root')
+    });
 
-  app.ports.onLoad.subscribe(function (key) {
-    const maybeItem = localStorage.getItem(key);
-    app.ports.loadString.send(maybeItem);
-  });
-</script>
+    app.ports.saveString.subscribe(function ([key, value]) {
+      localStorage.setItem(key, value);
+    });
+
+    app.ports.onLoad.subscribe(function (key) {
+      const maybeItem = localStorage.getItem(key);
+      app.ports.loadString.send(maybeItem);
+    });
+  </script>
 </body>
 </html>
