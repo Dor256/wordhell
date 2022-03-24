@@ -5,15 +5,14 @@ import Array exposing (..)
 import Browser
 import Css exposing (..)
 import Elements exposing (..)
+import Set exposing (..)
 import Html.Styled exposing (..)
 import Html.Styled.Events exposing (onClick)
 import Keyboard exposing (KeyAction(..), onKeyPress)
 import LocalStorage
+import Keyboard exposing (translateKey)
 
-
-type alias Guess =
-    Array (Maybe Char)
-
+type alias Guess = String
 
 main : Program () Model Msg
 main =
@@ -26,19 +25,17 @@ main =
 
 
 type alias Model =
-    { guesses : List (Maybe String)
+    { guesses : List String
     , word : String
-    , currentTile : Int
     , currentGuess : Guess
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { guesses = [ Nothing, Nothing, Nothing, Nothing, Nothing, Nothing ]
+    ( { guesses = []
       , word = ""
-      , currentTile = 0
-      , currentGuess = Array.fromList [ Nothing, Nothing, Nothing, Nothing, Nothing ]
+      , currentGuess = ""
       }
     , fetchWord FetchWord
     )
@@ -51,34 +48,14 @@ type Msg
     | Load (Maybe String)
     | TypeLetter KeyAction
 
+wordSize : Int
+wordSize = 5
 
-incrementCurrentTile : Int -> Int
-incrementCurrentTile tile =
-    if tile < 5 then
-        tile + 1
+maxGuesses : Int
+maxGuesses = 6
 
-    else
-        tile
-
-
-decrementCurrentTile : Int -> Int
-decrementCurrentTile tile =
-    if tile > 0 then
-        tile - 1
-
-    else
-        tile
-
-
-applyCurrentLetter : Model -> Char -> Guess
-applyCurrentLetter { currentTile, currentGuess } letter =
-    Array.set currentTile (Just letter) currentGuess
-
-
-deleteCurrentLetter : Model -> Guess
-deleteCurrentLetter { currentTile, currentGuess } =
-    Array.set (currentTile - 1) Nothing currentGuess
-
+trimGuess : Guess -> Guess
+trimGuess = String.left wordSize
 
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
@@ -98,7 +75,12 @@ update msg model =
         Load maybeValue ->
             case maybeValue of
                 Just value ->
-                    ( { model | guesses = model.guesses ++ [ Just value ] }, Cmd.none )
+                    ( { model
+                        | guesses = model.guesses ++ [value]
+                        , currentGuess = ""
+                      }
+                    , Cmd.none
+                    )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -106,21 +88,22 @@ update msg model =
         TypeLetter key ->
             case key of
                 Letter letter ->
-                    ( { model
-                        | currentTile = incrementCurrentTile model.currentTile
-                        , currentGuess = applyCurrentLetter model letter
-                      }
+                    ( { model | currentGuess = trimGuess (model.currentGuess ++ String.fromChar letter) }
                     , Cmd.none
                     )
 
                 Submit ->
-                    ( model, Cmd.none )
+                    if String.length model.currentGuess == wordSize then
+                        ( { model
+                            | currentGuess = ""
+                            , guesses = List.take maxGuesses (model.guesses ++ [model.currentGuess])
+                        }
+                        , Cmd.none
+                        )
+                    else ( model, Cmd.none )
 
                 Delete ->
-                    ( { model
-                        | currentTile = decrementCurrentTile model.currentTile
-                        , currentGuess = deleteCurrentLetter model
-                      }
+                    ( { model | currentGuess = String.dropRight 1 model.currentGuess }
                     , Cmd.none
                     )
 
@@ -135,19 +118,113 @@ subscriptions _ =
         , Sub.map TypeLetter onKeyPress
         ]
 
+emptyRow : Html msg
+emptyRow =
+    rowContainer [] (List.repeat wordSize emptyTile)
 
-wordRows : Guess -> Html msg
-wordRows guess =
+emptyTile : Html msg
+emptyTile =
+    tile [] []
+
+renderCurrentGuess : Guess -> Html msg
+renderCurrentGuess guess =
     let
-        renderTile maybeLetter =
-            case maybeLetter of
-                Just letter ->
-                    tile [] [ text <| String.fromChar letter ]
-
-                Nothing ->
-                    tile [] []
+        toTile letter = tile [] [text <| String.fromChar letter]
+        trimmedGuess = trimGuess guess
+        padding = wordSize - String.length trimmedGuess
     in
-    Array.map renderTile guess |> Array.toList |> rowContainer []
+    rowContainer [] <|
+        (trimmedGuess
+            |> String.toList
+            |> List.map toTile
+        ) ++ List.repeat padding emptyTile
+
+type Score
+    = Hit
+    | Miss
+    | Misplaced
+
+renderScoredGuess : String -> Guess -> Html msg
+renderScoredGuess word guess =
+    let
+        trimmedGuess = trimGuess guess
+        scoredGuess = (scoreGuess word) trimmedGuess
+    in
+    rowContainer [] <|
+        List.map
+            (\(letter, score) ->
+                case score of
+                    Hit ->
+                        hitTile [] [text <| String.fromChar letter]
+                    Misplaced ->
+                        misplacedTile [] [text <| String.fromChar letter]
+                    Miss ->
+                        missTile [] [text <| String.fromChar letter]
+            )
+            scoredGuess
+
+scoreGuess : String -> Guess -> List ( Char, Score )
+scoreGuess word guess =
+    let
+        wordChars = String.toList word
+        wordSet = Set.fromList wordChars
+        guessChars = String.toList guess
+    in
+    List.map2
+        (\wordChar guessChar ->
+            ( guessChar
+            , if guessChar == wordChar then
+                Hit
+              else if wordSet |> Set.member guessChar then
+                Misplaced
+              else
+                Miss
+            )
+        )
+        wordChars
+        guessChars
+
+
+wordleGrid : Model -> Html msg
+wordleGrid { guesses, currentGuess, word } =
+    let
+        unusedGuesses =
+           max 0
+                <| maxGuesses - List.length guesses - (if String.isEmpty currentGuess then 0 else 1)
+    in
+    gridContainer [] <|
+        List.concat
+            [ List.map (renderScoredGuess word) guesses
+            , if String.isEmpty currentGuess || List.length guesses >= maxGuesses then [] else [ renderCurrentGuess currentGuess ]
+            , List.repeat unusedGuesses emptyRow
+            ]
+
+toKeys : String -> List (Html Msg)
+toKeys keys =
+    let
+        toKey letter = key [ onClick <| TypeLetter (translateKey letter) ] [text <| String.fromChar letter]
+    in    
+    keys
+        |> String.toList
+        |> List.map toKey
+
+keyboard : Html Msg
+keyboard =
+    keyboardContainer []
+        [ keyRow [] <| toKeys "qwertyuiop"
+        , keyRow [] <|
+            List.concat 
+                [ [spacer [] []]
+                , toKeys "asdfghjkl"
+                , [spacer [] []]
+                ]
+        , keyRow [] <| 
+            List.concat
+                [ [ enterKey [onClick <| TypeLetter Submit] [text "Enter"] ]
+                , toKeys "zxcvbnm"
+                , [ deleteKey [onClick <| TypeLetter Delete] [text "⌫"] ]
+                ]
+        ]
 
 
 view : Model -> Html Msg
@@ -156,6 +233,7 @@ view model =
         [ container [ onClick Save ]
             [ heading [] [ text "Wordhell" ]
             , text model.word
-            , wordRows model.currentGuess |> List.repeat 6 |> gridContainer []
+            , wordleGrid model
+            , keyboard
             ]
         ]

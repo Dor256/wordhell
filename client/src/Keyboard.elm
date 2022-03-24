@@ -1,4 +1,4 @@
-module Keyboard exposing (KeyAction(..), onKeyPress)
+module Keyboard exposing (KeyAction(..), onKeyPress, translateKey)
 
 import Browser.Events exposing (onKeyDown)
 import Json.Decode as Json
