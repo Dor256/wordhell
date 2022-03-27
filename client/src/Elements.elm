@@ -72,7 +72,9 @@ tile =
 expand : Animations.Keyframes {  }
 expand =
     Animations.keyframes
-        [ (0, [Animations.transform [scale 0], Animations.opacity (int 0)] )]
+        [ (0, [Animations.transform [scale 0], Animations.opacity (int 0)] )
+        , (100, [Animations.transform [scale 1], Animations.opacity (int 1)])
+        ]
 
 expandAnimation : List Style
 expandAnimation =

@@ -10017,6 +10017,18 @@ var $author$project$Elements$expand = $rtfeldman$elm_css$Css$Animations$keyframe
 						])),
 					$rtfeldman$elm_css$Css$Animations$opacity(
 					$rtfeldman$elm_css$Css$int(0))
+				])),
+			_Utils_Tuple2(
+			100,
+			_List_fromArray(
+				[
+					$rtfeldman$elm_css$Css$Animations$transform(
+					_List_fromArray(
+						[
+							$rtfeldman$elm_css$Css$scale(1)
+						])),
+					$rtfeldman$elm_css$Css$Animations$opacity(
+					$rtfeldman$elm_css$Css$int(1))
 				]))
 		]));
 var $rtfeldman$elm_css$Css$ms = function (amount) {
