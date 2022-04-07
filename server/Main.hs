@@ -37,7 +37,7 @@ main = do
 
   scotty 3000 $ do
 
-  middleware $ staticPolicy $ addBase staticPath
+  middleware $ staticPolicy (addBase staticPath)
   
   get "/" $ file $ staticPath ++ "index.html"
 
