@@ -10070,6 +10070,58 @@ var $author$project$Elements$missTile = A2(
 var $author$project$Main$Hit = {$: 'Hit'};
 var $author$project$Main$Misplaced = {$: 'Misplaced'};
 var $author$project$Main$Miss = {$: 'Miss'};
+var $elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			$elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
+	});
+var $elm$core$List$member = F2(
+	function (x, xs) {
+		return A2(
+			$elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
+			},
+			xs);
+	});
+var $author$project$Main$removeMisplacedIfHit = function (scoredGuess) {
+	var isUniqueLetter = function (letter) {
+		return $elm$core$List$length(
+			A2(
+				$elm$core$List$filter,
+				function (_v2) {
+					var letter_ = _v2.a;
+					return _Utils_eq(letter_, letter);
+				},
+				scoredGuess)) <= 1;
+	};
+	var shouldReplaceMisplaced = function (_v1) {
+		var letter = _v1.a;
+		var score = _v1.b;
+		return A2(
+			$elm$core$List$member,
+			_Utils_Tuple2(letter, $author$project$Main$Hit),
+			scoredGuess) && (_Utils_eq(score, $author$project$Main$Misplaced) && isUniqueLetter(letter));
+	};
+	return A2(
+		$elm$core$List$map,
+		function (_v0) {
+			var letter = _v0.a;
+			var score = _v0.b;
+			return (A2(
+				$elm$core$List$member,
+				_Utils_Tuple2(letter, $author$project$Main$Hit),
+				scoredGuess) && shouldReplaceMisplaced(
+				_Utils_Tuple2(letter, score))) ? _Utils_Tuple2(letter, $author$project$Main$Miss) : _Utils_Tuple2(letter, score);
+		},
+		scoredGuess);
+};
 var $elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
@@ -10116,7 +10168,8 @@ var $author$project$Main$scoreGuess = F2(
 var $author$project$Main$renderScoredGuess = F2(
 	function (word, guess) {
 		var trimmedGuess = $author$project$Main$trimGuess(guess);
-		var scoredGuess = $author$project$Main$scoreGuess(word)(trimmedGuess);
+		var scoredGuess = A2($author$project$Main$scoreGuess, word, trimmedGuess);
+		var fixedGuess = $author$project$Main$removeMisplacedIfHit(scoredGuess);
 		return A2(
 			$author$project$Elements$rowContainer,
 			_List_Nil,
@@ -10155,7 +10208,7 @@ var $author$project$Main$renderScoredGuess = F2(
 									]));
 					}
 				},
-				scoredGuess));
+				fixedGuess));
 	});
 var $author$project$Main$wordleGrid = function (_v0) {
 	var guesses = _v0.guesses;

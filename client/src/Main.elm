@@ -129,6 +129,7 @@ emptyTile =
 renderCurrentGuess : Guess -> Html msg
 renderCurrentGuess guess =
     let
+        toTile : Char -> Html msg
         toTile letter = tile [] [text <| String.fromChar letter]
         trimmedGuess = trimGuess guess
         padding = wordSize - String.length trimmedGuess
@@ -148,7 +149,9 @@ renderScoredGuess : String -> Guess -> Html msg
 renderScoredGuess word guess =
     let
         trimmedGuess = trimGuess guess
-        scoredGuess = (scoreGuess word) trimmedGuess
+        scoredGuess : List (Char, Score)
+        scoredGuess = scoreGuess word trimmedGuess
+        fixedGuess = removeMisplacedIfHit scoredGuess
     in
     rowContainer [] <|
         List.map
@@ -161,7 +164,26 @@ renderScoredGuess word guess =
                     Miss ->
                         missTile [] [text <| String.fromChar letter]
             )
-            scoredGuess
+            fixedGuess
+
+removeMisplacedIfHit : List ( Char, Score ) -> List ( Char, Score )
+removeMisplacedIfHit scoredGuess =
+    let
+        isUniqueLetter : Char -> Bool
+        isUniqueLetter letter =
+            (List.length <| List.filter (\(letter_, _) -> letter_ == letter) scoredGuess) <= 1
+        shouldReplaceMisplaced : ( Char, Score ) -> Bool
+        shouldReplaceMisplaced (letter, score) =
+            List.member (letter, Hit) scoredGuess && score == Misplaced && isUniqueLetter letter
+    in
+    List.map
+        (\(letter, score) ->
+            if List.member (letter, Hit) scoredGuess && shouldReplaceMisplaced (letter, score) then
+                (letter, Miss)
+            else
+                (letter, score)
+        )
+        scoredGuess
 
 scoreGuess : String -> Guess -> List ( Char, Score )
 scoreGuess word guess =
