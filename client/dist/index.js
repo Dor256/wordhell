@@ -7318,6 +7318,7 @@ var $elm$core$String$dropRight = F2(
 var $elm$core$String$fromChar = function (_char) {
 	return A2($elm$core$String$cons, _char, '');
 };
+var $elm$core$Debug$log = _Debug_log;
 var $author$project$Main$maxGuesses = 6;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
@@ -7482,7 +7483,9 @@ var $author$project$Main$update = F2(
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{word: res}),
+							{
+								word: A2($elm$core$Debug$log, 'resp', res)
+							}),
 						$elm$core$Platform$Cmd$none);
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);

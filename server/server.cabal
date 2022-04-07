@@ -14,3 +14,4 @@ executable          server
                   , text
                   , random
                   , wai-middleware-static
+                  , containers
