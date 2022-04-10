@@ -19,13 +19,17 @@ readAnswers :: IO [Text]
 readAnswers = do
     contents <- readFile "answers.txt"
     let answers = lines contents
-    return $ List.map toLower $ List.filter ((==5) . length) answers
+    return $ List.map toLower $ List.filter fiveLetterWords answers
+    where
+        fiveLetterWords = (==5) . length
 
 readDictionary :: IO (Set.Set Text)
 readDictionary = do
     contents <- readFile "words.txt"
     let dictionary = Set.fromList $ lines contents
-    return $ Set.map toLower $ Set.filter((==5) . length) dictionary
+    return $ Set.map toLower $ Set.filter fiveLetterWords dictionary
+    where
+        fiveLetterWords = (==5) . length
     
 
 findRandomWord :: [Text] -> ActionM Text
