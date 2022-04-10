@@ -8,9 +8,12 @@ import Data.Text.Lazy.IO (readFile)
 import qualified Data.Set as Set
 import System.Random
 import Network.Wai.Middleware.Static
+import System.Directory
 
-staticPath :: String
-staticPath = "/Users/dorb/Workspace/wordhell/client/dist/"
+staticPath :: IO FilePath
+staticPath = do 
+    curDir <- getCurrentDirectory
+    return $ curDir ++ "/../client/dist/"
 
 readAnswers :: IO [Text]
 readAnswers = do
@@ -34,12 +37,13 @@ main :: IO ()
 main = do 
   dictionary <- readDictionary
   answers <- readAnswers
+  statics <- staticPath
 
   scotty 3000 $ do
 
-  middleware $ staticPolicy (addBase staticPath)
+  middleware $ staticPolicy (addBase statics)
   
-  get "/" $ file $ staticPath ++ "index.html"
+  get "/" $ file $ statics ++ "index.html"
 
   get "/words" $ json dictionary
 
