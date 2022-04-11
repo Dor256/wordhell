@@ -15,7 +15,10 @@ fs.watch('../', { recursive: true }, (_, file) => {
     console.log('Detected changes');
 
     debouncedTimeout = setTimeout(() => {
-      execSync('killall server');
+      const isProcessAlive = +execSync(`ps -p ${process.pid} | wc -l`).toString() >= 2;
+      if (isProcessAlive) {
+        execSync('killall server');
+      }
       process = spawn(`${__dirname}/dev.zsh`, [], { stdio: 'inherit' });
     }, 1000);
   }

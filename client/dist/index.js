@@ -10081,6 +10081,7 @@ var $elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
+var $elm$core$String$filter = _String_filter;
 var $elm$core$List$member = F2(
 	function (x, xs) {
 		return A2(
@@ -10090,38 +10091,43 @@ var $elm$core$List$member = F2(
 			},
 			xs);
 	});
-var $author$project$Main$removeMisplacedIfHit = function (scoredGuess) {
-	var isUniqueLetter = function (letter) {
-		return $elm$core$List$length(
-			A2(
-				$elm$core$List$filter,
-				function (_v2) {
-					var letter_ = _v2.a;
-					return _Utils_eq(letter_, letter);
-				},
-				scoredGuess)) <= 1;
-	};
-	var shouldReplaceMisplaced = function (_v1) {
-		var letter = _v1.a;
-		var score = _v1.b;
-		return A2(
-			$elm$core$List$member,
-			_Utils_Tuple2(letter, $author$project$Main$Hit),
-			scoredGuess) && (_Utils_eq(score, $author$project$Main$Misplaced) && isUniqueLetter(letter));
-	};
-	return A2(
-		$elm$core$List$map,
-		function (_v0) {
-			var letter = _v0.a;
-			var score = _v0.b;
-			return (A2(
+var $author$project$Main$removeMisplacedIfHit = F2(
+	function (word, scoredGuess) {
+		var numberOfLettersInWord = function (letter) {
+			return $elm$core$String$length(
+				A2(
+					$elm$core$String$filter,
+					$elm$core$Basics$eq(letter),
+					word));
+		};
+		var numberOfHits = function (letter) {
+			return $elm$core$List$length(
+				A2(
+					$elm$core$List$filter,
+					$elm$core$Basics$eq(
+						_Utils_Tuple2(letter, $author$project$Main$Hit)),
+					scoredGuess));
+		};
+		var shouldReplaceMisplaced = function (_v1) {
+			var letter = _v1.a;
+			var score = _v1.b;
+			return A2(
 				$elm$core$List$member,
 				_Utils_Tuple2(letter, $author$project$Main$Hit),
-				scoredGuess) && shouldReplaceMisplaced(
-				_Utils_Tuple2(letter, score))) ? _Utils_Tuple2(letter, $author$project$Main$Miss) : _Utils_Tuple2(letter, score);
-		},
-		scoredGuess);
-};
+				scoredGuess) && (_Utils_eq(score, $author$project$Main$Misplaced) && (_Utils_cmp(
+				numberOfHits(letter),
+				numberOfLettersInWord(letter)) > -1));
+		};
+		return A2(
+			$elm$core$List$map,
+			function (_v0) {
+				var letter = _v0.a;
+				var score = _v0.b;
+				return shouldReplaceMisplaced(
+					_Utils_Tuple2(letter, score)) ? _Utils_Tuple2(letter, $author$project$Main$Miss) : _Utils_Tuple2(letter, score);
+			},
+			scoredGuess);
+	});
 var $elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
@@ -10169,7 +10175,7 @@ var $author$project$Main$renderScoredGuess = F2(
 	function (word, guess) {
 		var trimmedGuess = $author$project$Main$trimGuess(guess);
 		var scoredGuess = A2($author$project$Main$scoreGuess, word, trimmedGuess);
-		var fixedGuess = $author$project$Main$removeMisplacedIfHit(scoredGuess);
+		var fixedGuess = A2($author$project$Main$removeMisplacedIfHit, word, scoredGuess);
 		return A2(
 			$author$project$Elements$rowContainer,
 			_List_Nil,

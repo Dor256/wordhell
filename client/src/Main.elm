@@ -151,7 +151,7 @@ renderScoredGuess word guess =
         trimmedGuess = trimGuess guess
         scoredGuess : List (Char, Score)
         scoredGuess = scoreGuess word trimmedGuess
-        fixedGuess = removeMisplacedIfHit scoredGuess
+        fixedGuess = removeMisplacedIfHit word scoredGuess
     in
     rowContainer [] <|
         List.map
@@ -166,19 +166,24 @@ renderScoredGuess word guess =
             )
             fixedGuess
 
-removeMisplacedIfHit : List ( Char, Score ) -> List ( Char, Score )
-removeMisplacedIfHit scoredGuess =
+removeMisplacedIfHit : String -> List ( Char, Score ) -> List ( Char, Score )
+removeMisplacedIfHit word scoredGuess =
     let
-        isUniqueLetter : Char -> Bool
-        isUniqueLetter letter =
-            (List.length <| List.filter (\(letter_, _) -> letter_ == letter) scoredGuess) <= 1
+        numberOfHits : Char -> Int
+        numberOfHits letter =
+            List.length <| List.filter ((==)(letter, Hit)) scoredGuess
+
+        numberOfLettersInWord : Char -> Int
+        numberOfLettersInWord letter =
+            String.length <| String.filter ((==) letter) word
+
         shouldReplaceMisplaced : ( Char, Score ) -> Bool
         shouldReplaceMisplaced (letter, score) =
-            List.member (letter, Hit) scoredGuess && score == Misplaced && isUniqueLetter letter
+            List.member (letter, Hit) scoredGuess && score == Misplaced && (numberOfHits letter >= numberOfLettersInWord letter)
     in
     List.map
         (\(letter, score) ->
-            if List.member (letter, Hit) scoredGuess && shouldReplaceMisplaced (letter, score) then
+            if shouldReplaceMisplaced (letter, score) then
                 (letter, Miss)
             else
                 (letter, score)
