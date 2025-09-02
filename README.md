@@ -11,4 +11,8 @@
 - `build.zsh` - Build a production version of the app.
 
 # Missing Features
-- ### Make guesses persistent
+- Persist single word per game session (until win or lose)
+- Support for word choice through config (env)
+- Animate keyboard clicks
+- Color keyboard by state (correct, incorrect, etc.)
+- Incorporate server & client tests

@@ -25,6 +25,10 @@
       const maybeItem = localStorage.getItem(key);
       app.ports.loadString.send(maybeItem);
     });
+
+    app.ports.deleteItem.subscribe(function (key) {
+      localStorage.removeItem(key);
+    });
   </script>
 </body>
 </html>

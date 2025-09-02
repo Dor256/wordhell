@@ -16,6 +16,8 @@ import Process
 
 type alias Guess = String
 
+type Outcome = Win | Lose
+
 main : Program () Model Msg
 main =
     Browser.element
@@ -30,7 +32,7 @@ type alias Model =
     { guesses : List String
     , word : String
     , currentGuess : Guess
-    , isGameOver : Bool
+    , gameOutcome : Maybe Outcome
     }
 
 
@@ -39,19 +41,22 @@ init _ =
     ( { guesses = []
       , word = ""
       , currentGuess = ""
-      , isGameOver = False
+      , gameOutcome = Nothing
       }
-    , fetchWord FetchWord
+    , Cmd.batch
+        [ fetchWord FetchWord
+        , Task.perform OnLoad (Task.succeed guessesStorageKey)
+        ]
     )
 
 
 type Msg
     = FetchWord WordResponse
-    | Save
+    | Save (List Guess)
     | OnLoad String
     | Load (Maybe String)
     | TypeLetter KeyAction
-    | Complete
+    | GameOver Outcome
 
 wordSize : Int
 wordSize = 5
@@ -59,12 +64,19 @@ wordSize = 5
 maxGuesses : Int
 maxGuesses = 6
 
+guessesStorageKey : String
+guessesStorageKey = "guesses"
+
 trimGuess : Guess -> Guess
 trimGuess = String.left wordSize
 
+runCmd : msg -> Cmd msg
+runCmd msg =
+    Task.succeed msg
+        |> Task.perform identity
 
-performMessage : msg -> Cmd msg
-performMessage msg =
+performDelayedMessage : msg -> Cmd msg
+performDelayedMessage msg =
     transitionDelayMs * 6 |> Process.sleep |> Task.perform (always msg)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -76,8 +88,8 @@ update msg model =
         FetchWord (Err _) ->
             ( model, Cmd.none )
 
-        Save ->
-            ( model, LocalStorage.saveString ( "key", "value" ) )
+        Save guesses ->
+            ( model, LocalStorage.saveString ( guessesStorageKey,  String.join "," guesses ) )
 
         OnLoad key ->
             ( model, LocalStorage.onLoad key )
@@ -86,7 +98,7 @@ update msg model =
             case maybeValue of
                 Just value ->
                     ( { model
-                        | guesses = model.guesses ++ [value]
+                        | guesses = model.guesses ++ String.split "," value
                         , currentGuess = ""
                       }
                     , Cmd.none
@@ -105,13 +117,24 @@ update msg model =
                 Submit ->
                     if String.length model.currentGuess == wordSize then
                         let
-                            isCorrectGuess = model.currentGuess == model.word 
+                            isCorrectGuess = model.currentGuess == model.word
+                            cmd = if isCorrectGuess then
+                                    Cmd.batch
+                                        [ performDelayedMessage (GameOver Win)
+                                        , LocalStorage.deleteItem guessesStorageKey
+                                        ]
+                                  else if List.length model.guesses + 1 >= maxGuesses then
+                                    Cmd.batch
+                                        [ performDelayedMessage (GameOver Lose)
+                                        , LocalStorage.deleteItem guessesStorageKey
+                                        ]
+                                  else runCmd (Save (model.guesses ++ [model.currentGuess]))
                         in
                         ( { model
                             | currentGuess = ""
                             , guesses = List.take maxGuesses (model.guesses ++ [model.currentGuess])
-                        }
-                        , if isCorrectGuess then performMessage Complete else Cmd.none
+                          }
+                        , cmd
                         )
                     else ( model, Cmd.none )
 
@@ -122,18 +145,18 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
-        Complete ->
-            ( { model | isGameOver = True }, Cmd.none )
-
+        GameOver outcome ->
+            ( { model | gameOutcome = Just outcome }, Cmd.none )
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ LocalStorage.loadString Load
-        , if model.isGameOver then
-            Sub.none
-          else
-            Sub.map TypeLetter onKeyPress
+        , case model.gameOutcome of
+            Just _ ->
+                Sub.none
+            Nothing ->
+                Sub.map TypeLetter onKeyPress
         ]
 
 emptyRow : Html msg
@@ -271,14 +294,28 @@ keyboard =
                 ]
         ]
 
+gameOverModal : Maybe Outcome -> Html msg
+gameOverModal maybeOutcome =
+    case maybeOutcome of
+        Just outcome ->
+            modal True 
+               [
+                    case outcome of
+                        Win ->
+                            text "You Won!"
+                        Lose ->
+                            text "Game Over!"
+               ]
+        Nothing ->
+            modal False []
 
 view : Model -> Html Msg
 view model =
     page []
-        [ container [ onClick Save ]
+        [ container []
             [ heading [] [ text "Wordhell" ]
             , text model.word
-            , modal model.isGameOver [ text "Game Over!" ]
+            , gameOverModal model.gameOutcome
             , wordleGrid model
             , keyboard
             ]

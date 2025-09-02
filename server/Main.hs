@@ -33,10 +33,7 @@ readDictionary = do
 
 
 findRandomWord :: [Text] -> ActionM Text
-findRandomWord possibleWords = do
-    index <- randomRIO (0, List.length possibleWords - 1)
-    return $ possibleWords !! index
-
+findRandomWord possibleWords = (possibleWords !!) <$> randomRIO (0, List.length possibleWords - 1)
 
 getEnv :: IO String
 getEnv = fromMaybe "development" <$> Env.lookupEnv "APP_ENV"
@@ -55,6 +52,4 @@ main = do
 
     get "/words" $ json dictionary
 
-    get "/word" $ do
-        word <- findRandomWord answers
-        text word
+    get "/word" $ findRandomWord answers >>= text
