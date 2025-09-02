@@ -2,6 +2,7 @@ module Elements exposing ( container
                          , gridContainer
                          , heading
                          , page
+                         , modal
                          , rowContainer
                          , tile
                          , hitTile
@@ -13,17 +14,21 @@ module Elements exposing ( container
                          , spacer
                          , enterKey
                          , deleteKey
+                         , transitionDelayMs
                          , HtmlElement
                          )
 
 import Css exposing (..)
 import Html.Styled exposing (Attribute, Html, div, h2, main_, styled)
+import Css.Transitions as Transitions exposing (transition, ease)
 import Css.Animations as Animations
 
 
 type alias HtmlElement msg =
     List (Attribute msg) -> List (Html msg) -> Html msg
 
+transitionDelayMs : Float
+transitionDelayMs = 500
 
 gridGap : Float -> Style
 gridGap pixels =
@@ -53,6 +58,41 @@ page =
         , fontFamilies [ "Helvetica, sans-serif" ]
         ]
 
+backdrop : HtmlElement msg
+backdrop =
+    styled div
+        [ position fixed
+        , top (pct 0)
+        , left (pct 0)
+        , width (pct 100)
+        , height (pct 100)
+        , backgroundColor (rgba 0 0 0 0.5)
+        , zIndex (int 999)
+        ]
+
+modalContent : HtmlElement msg
+modalContent =
+    styled div
+        [ position fixed
+        , top (pct 50)
+        , left (pct 50)
+        , transform (translate2 (px -50) (px -50))
+        , backgroundColor (hex "#3a3a3c")
+        , padding (px 20)
+        , borderRadius (px 10)
+        , boxShadow4 (px 0) (px 0) (px 10) (hex "#000000")
+        , zIndex (int 1000)
+        ]
+
+modal : Bool -> List (Html msg) -> Html msg
+modal isVisible children =
+    if isVisible then
+        div []
+            [ backdrop [] []
+            , modalContent [] children
+            ]
+    else
+        div [] []
 
 tile : HtmlElement msg
 tile =
@@ -69,31 +109,44 @@ tile =
         , textTransform uppercase
         ]
 
-expand : Animations.Keyframes {  }
-expand =
+flip : Animations.Keyframes {}
+flip =
     Animations.keyframes
-        [ (0, [Animations.transform [scale 0], Animations.opacity (int 0)] )
-        , (100, [Animations.transform [scale 1], Animations.opacity (int 1)])
+        [ (0, [ Animations.transform [rotateX (deg 0)] ])
+        , (50, [ Animations.transform [rotateX (deg 90)] ])
         ]
 
-expandAnimation : List Style
-expandAnimation =
-    [ animationName expand, animationDuration (ms 750) ]
+flipAnimation : Int -> List Style
+flipAnimation index =
+    [ animationName flip
+    , animationDuration (ms 700)
+    , animationDelay (ms (toFloat index * transitionDelayMs))
+    ]
 
-hitTile : HtmlElement msg
-hitTile =
-    styled tile <|
-        backgroundColor (hex "#538d4e") :: expandAnimation
+backgroundColorTransition : Int -> Style
+backgroundColorTransition index =
+    transition [ Transitions.backgroundColor3 2000 (toFloat index * transitionDelayMs) ease ]
 
-missTile : HtmlElement msg
-missTile =
+hitTile : Int -> HtmlElement msg
+hitTile index =
     styled tile <|
-        backgroundColor (hex "#3a3a3c") :: expandAnimation
+        [ backgroundColor (hex "#538d4e")
+        , backgroundColorTransition index
+        ] ++ flipAnimation index
 
-misplacedTile : HtmlElement msg
-misplacedTile =
+missTile : Int -> HtmlElement msg
+missTile index =
     styled tile <|
-        backgroundColor (hex "#b59f3b") :: expandAnimation
+        [ backgroundColor (hex "#3a3a3c")
+        , backgroundColorTransition index
+        ] ++ flipAnimation index
+
+misplacedTile : Int -> HtmlElement msg
+misplacedTile index =
+    styled tile <|
+        [ backgroundColor (hex "#b59f3b")
+        , backgroundColorTransition index
+        ] ++ flipAnimation index
 
 gridContainer : HtmlElement msg
 gridContainer =
