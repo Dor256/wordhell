@@ -3,8 +3,6 @@ version: 0.0.0
 license: BSD3
 author: "Dor"
 category: Web
-extra-source-files:
-  - README.md
 
 dependencies:
   - base >= 4 && < 5
