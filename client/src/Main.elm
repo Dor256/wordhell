@@ -11,6 +11,8 @@ import Html.Styled.Events exposing (onClick)
 import Keyboard exposing (KeyAction(..), onKeyPress)
 import LocalStorage
 import Keyboard exposing (translateKey)
+import Task
+import Process
 
 type alias Guess = String
 
@@ -28,6 +30,7 @@ type alias Model =
     { guesses : List String
     , word : String
     , currentGuess : Guess
+    , isGameOver : Bool
     }
 
 
@@ -36,6 +39,7 @@ init _ =
     ( { guesses = []
       , word = ""
       , currentGuess = ""
+      , isGameOver = False
       }
     , fetchWord FetchWord
     )
@@ -47,6 +51,7 @@ type Msg
     | OnLoad String
     | Load (Maybe String)
     | TypeLetter KeyAction
+    | Complete
 
 wordSize : Int
 wordSize = 5
@@ -57,7 +62,12 @@ maxGuesses = 6
 trimGuess : Guess -> Guess
 trimGuess = String.left wordSize
 
-update : Msg -> Model -> ( Model, Cmd msg )
+
+performMessage : msg -> Cmd msg
+performMessage msg =
+    transitionDelayMs * 6 |> Process.sleep |> Task.perform (always msg)
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         FetchWord (Ok res) ->
@@ -94,11 +104,14 @@ update msg model =
 
                 Submit ->
                     if String.length model.currentGuess == wordSize then
+                        let
+                            isCorrectGuess = model.currentGuess == model.word 
+                        in
                         ( { model
                             | currentGuess = ""
                             , guesses = List.take maxGuesses (model.guesses ++ [model.currentGuess])
                         }
-                        , Cmd.none
+                        , if isCorrectGuess then performMessage Complete else Cmd.none
                         )
                     else ( model, Cmd.none )
 
@@ -109,13 +122,18 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+        Complete ->
+            ( { model | isGameOver = True }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
+subscriptions model =
     Sub.batch
         [ LocalStorage.loadString Load
-        , Sub.map TypeLetter onKeyPress
+        , if model.isGameOver then
+            Sub.none
+          else
+            Sub.map TypeLetter onKeyPress
         ]
 
 emptyRow : Html msg
@@ -154,15 +172,15 @@ renderScoredGuess word guess =
         fixedGuess = removeMisplacedIfHit word scoredGuess
     in
     rowContainer [] <|
-        List.map
-            (\(letter, score) ->
+        List.indexedMap
+            (\index (letter, score) ->
                 case score of
                     Hit ->
-                        hitTile [] [text <| String.fromChar letter]
+                        hitTile index [] [text <| String.fromChar letter]
                     Misplaced ->
-                        misplacedTile [] [text <| String.fromChar letter]
+                        misplacedTile index [] [text <| String.fromChar letter]
                     Miss ->
-                        missTile [] [text <| String.fromChar letter]
+                        missTile index [] [text <| String.fromChar letter]
             )
             fixedGuess
 
@@ -260,7 +278,9 @@ view model =
         [ container [ onClick Save ]
             [ heading [] [ text "Wordhell" ]
             , text model.word
+            , modal model.isGameOver [ text "Game Over!" ]
             , wordleGrid model
             , keyboard
             ]
         ]
+  

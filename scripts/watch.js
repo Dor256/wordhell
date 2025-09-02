@@ -1,25 +1,23 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
-const { spawn, execSync } = require('child_process');
+const { spawn } = require('child_process');
 
-let process = spawn(`${__dirname}/dev.zsh`, [], { stdio: 'inherit' });
+const serverProcess = spawn('zsh', [`${__dirname}/dev.zsh`], { stdio: 'inherit' });
+
 console.log('Starting file watcher...');
 
 let debouncedTimeout = null;
-
 fs.watch('../', { recursive: true }, (_, file) => {
   if (file.endsWith('.elm') || file.endsWith('.hs')) {
     clearTimeout(debouncedTimeout);
-
     console.log('Detected changes');
 
     debouncedTimeout = setTimeout(() => {
-      const isProcessAlive = +execSync(`ps -p ${process.pid} | wc -l`).toString() >= 2;
-      if (isProcessAlive) {
-        execSync('killall server');
-      }
-      process = spawn(`${__dirname}/dev.zsh`, [], { stdio: 'inherit' });
+      const buildProcess = spawn('zsh', [`${__dirname}/dev.zsh`], { stdio: 'inherit' });
+      buildProcess.on('exit', () => {
+        console.log('Client rebuilt');
+      });
     }, 1000);
   }
 });

@@ -9,11 +9,11 @@ import qualified Data.Set as Set
 import System.Random
 import Network.Wai.Middleware.Static
 import System.Directory
+import qualified System.Environment as Env
+import Data.Maybe (fromMaybe)
 
 staticPath :: IO FilePath
-staticPath = do 
-    curDir <- getCurrentDirectory
-    return $ curDir ++ "/../client/dist/"
+staticPath = fmap (++ "/../client/static/") getCurrentDirectory
 
 readAnswers :: IO [Text]
 readAnswers = do
@@ -30,27 +30,31 @@ readDictionary = do
     return $ Set.map toLower $ Set.filter fiveLetterWords dictionary
     where
         fiveLetterWords = (==5) . length
-    
+
 
 findRandomWord :: [Text] -> ActionM Text
 findRandomWord possibleWords = do
     index <- randomRIO (0, List.length possibleWords - 1)
     return $ possibleWords !! index
 
+
+getEnv :: IO String
+getEnv = fromMaybe "development" <$> Env.lookupEnv "APP_ENV"
+
 main :: IO ()
-main = do 
+main = do
   dictionary <- readDictionary
   answers <- readAnswers
   statics <- staticPath
-
+  env <- getEnv
   scotty 3000 $ do
 
-  middleware $ staticPolicy (addBase statics)
-  
-  get "/" $ file $ statics ++ "index.html"
+    middleware $ staticPolicy (addBase statics)
 
-  get "/words" $ json dictionary
+    get "/" $ file $ statics ++ "index.html"
 
-  get "/word" $ do
-    word <- findRandomWord answers
-    text word
+    get "/words" $ json dictionary
+
+    get "/word" $ do
+        word <- findRandomWord answers
+        text word

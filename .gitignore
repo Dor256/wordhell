@@ -1,4 +1,4 @@
 **/node_modules
 **/elm-stuff
-server/dist
+**/dist
 .stack-work
