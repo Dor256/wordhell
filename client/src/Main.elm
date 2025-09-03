@@ -1,6 +1,5 @@
 module Main exposing (..)
 
-import Api exposing (WordResponse, fetchWord)
 import Array exposing (..)
 import Browser
 import Css exposing (..)
@@ -13,10 +12,9 @@ import LocalStorage
 import Keyboard exposing (translateKey)
 import Task
 import Process
-
-type alias Guess = String
-
-type Outcome = Win | Lose
+import Storage exposing (guessesStorageKey, dailyWordStorageKey, storageHandlers)
+import Model exposing (Model, Msg(..), Guess, Outcome(..))
+import Dict
 
 main : Program () Model Msg
 main =
@@ -28,14 +26,6 @@ main =
         }
 
 
-type alias Model =
-    { guesses : List String
-    , word : String
-    , currentGuess : Guess
-    , gameOutcome : Maybe Outcome
-    }
-
-
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { guesses = []
@@ -44,28 +34,17 @@ init _ =
       , gameOutcome = Nothing
       }
     , Cmd.batch
-        [ fetchWord FetchWord
-        , Task.perform OnLoad (Task.succeed guessesStorageKey)
+        [ runCmd (OnLoad guessesStorageKey)
+        , runCmd (OnLoad dailyWordStorageKey)
         ]
     )
 
-
-type Msg
-    = FetchWord WordResponse
-    | Save (List Guess)
-    | OnLoad String
-    | Load (Maybe String)
-    | TypeLetter KeyAction
-    | GameOver Outcome
 
 wordSize : Int
 wordSize = 5
 
 maxGuesses : Int
 maxGuesses = 6
-
-guessesStorageKey : String
-guessesStorageKey = "guesses"
 
 trimGuess : Guess -> Guess
 trimGuess = String.left wordSize
@@ -83,26 +62,21 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         FetchWord (Ok res) ->
-            ( { model | word = res }, Cmd.none )
+            ( { model | word = res }, runCmd (Save ( dailyWordStorageKey, res )) )
 
         FetchWord (Err _) ->
             ( model, Cmd.none )
 
-        Save guesses ->
-            ( model, LocalStorage.saveString ( guessesStorageKey,  String.join "," guesses ) )
+        Save ( key, value ) ->
+            ( model, LocalStorage.saveString ( key, value ) )
 
         OnLoad key ->
             ( model, LocalStorage.onLoad key )
 
-        Load maybeValue ->
-            case maybeValue of
-                Just value ->
-                    ( { model
-                        | guesses = model.guesses ++ String.split "," value
-                        , currentGuess = ""
-                      }
-                    , Cmd.none
-                    )
+        Load (key, maybeValue) ->
+            case Dict.get key storageHandlers of
+                Just handler ->
+                    handler maybeValue model
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -121,14 +95,14 @@ update msg model =
                             cmd = if isCorrectGuess then
                                     Cmd.batch
                                         [ performDelayedMessage (GameOver Win)
-                                        , LocalStorage.deleteItem guessesStorageKey
+                                        , LocalStorage.clear ()
                                         ]
                                   else if List.length model.guesses + 1 >= maxGuesses then
                                     Cmd.batch
                                         [ performDelayedMessage (GameOver Lose)
-                                        , LocalStorage.deleteItem guessesStorageKey
+                                        , LocalStorage.clear ()
                                         ]
-                                  else runCmd (Save (model.guesses ++ [model.currentGuess]))
+                                  else runCmd (Save (guessesStorageKey, String.join "," (model.guesses ++ [model.currentGuess])))
                         in
                         ( { model
                             | currentGuess = ""

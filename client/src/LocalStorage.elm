@@ -4,6 +4,6 @@ port saveString : ( String, String ) -> Cmd msg
 
 port onLoad : String -> Cmd msg
 
-port loadString : (Maybe String -> msg) -> Sub msg
+port loadString : (( String, Maybe String ) -> msg) -> Sub msg
 
-port deleteItem : String -> Cmd msg
+port clear : () -> Cmd msg
