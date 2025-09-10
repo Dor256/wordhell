@@ -6,18 +6,30 @@ category: Web
 
 dependencies:
   - base >= 4 && < 5
-  - scotty
   - aeson
   - text
   - random
   - wai-middleware-static
   - containers
   - directory
+  - servant
+  - wai
+  - servant-server
+  - warp
 
 executables:
   server:
     main: Main.hs
-    source-dirs: .
+    source-dirs:
+      - .
+      - routers
+      - services
+      - middlewares
+    other-modules:
+      - WordRouter
+      - StaticRouter
+      - WordService
+      - Middleware
     ghc-options:
       - -Wall
       - -threaded

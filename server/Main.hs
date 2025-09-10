@@ -1,55 +1,32 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DataKinds #-}
 
-import Web.Scotty
-import Data.Text.Lazy (Text, lines, length, toLower)
-import qualified Data.List as List
-import Prelude hiding (lines, readFile, length)
-import Data.Text.Lazy.IO (readFile)
-import qualified Data.Set as Set
-import System.Random
-import Network.Wai.Middleware.Static
-import System.Directory
+import Prelude hiding (log)
 import qualified System.Environment as Env
-import Data.Maybe (fromMaybe)
+import Servant
+import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, defaultSettings, runSettings)
+import WordRouter ( WordRouter, wordRouter )
+import StaticRouter ( StaticApi, serveClient )
+import Middleware (cors, log)
 
-staticPath :: IO FilePath
-staticPath = fmap (++ "/../client/static/") getCurrentDirectory
+type Api = WordRouter
+  :<|> StaticApi
 
-readAnswers :: IO [Text]
-readAnswers = do
-    contents <- readFile "answers.txt"
-    let answers = lines contents
-    return $ List.map toLower $ List.filter fiveLetterWords answers
-    where
-        fiveLetterWords = (==5) . length
+api :: Proxy Api
+api = Proxy
 
-readDictionary :: IO (Set.Set Text)
-readDictionary = do
-    contents <- readFile "words.txt"
-    let dictionary = Set.fromList $ lines contents
-    return $ Set.map toLower $ Set.filter fiveLetterWords dictionary
-    where
-        fiveLetterWords = (==5) . length
+router :: Server Api
+router = wordRouter
+  :<|> serveClient
 
-
-findRandomWord :: [Text] -> ActionM Text
-findRandomWord possibleWords = (possibleWords !!) <$> randomRIO (0, List.length possibleWords - 1)
-
-getEnv :: IO String
-getEnv = fromMaybe "development" <$> Env.lookupEnv "APP_ENV"
+server :: Application
+server = serve api router
 
 main :: IO ()
-main = do
-  dictionary <- readDictionary
-  answers <- readAnswers
-  statics <- staticPath
-  env <- getEnv
-  scotty 3000 $ do
-
-    middleware $ staticPolicy (addBase statics)
-
-    get "/" $ file $ statics ++ "index.html"
-
-    get "/words" $ json dictionary
-
-    get "/word" $ findRandomWord answers >>= text
+main =
+  let
+    port = 3000
+    settings = setPort port $ setBeforeMainLoop (putStrLn $ "Server started on port " ++ show port ++ "\n") defaultSettings
+    middleware = log . cors
+  in
+    runSettings settings $ middleware server

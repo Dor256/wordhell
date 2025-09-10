@@ -23,11 +23,11 @@
 
     app.ports.onLoad.subscribe(function (key) {
       const maybeItem = localStorage.getItem(key);
-      app.ports.loadString.send(maybeItem);
+      app.ports.loadString.send([key, maybeItem]);
     });
 
-    app.ports.deleteItem.subscribe(function (key) {
-      localStorage.removeItem(key);
+    app.ports.clear.subscribe(function () {
+      localStorage.clear();
     });
   </script>
 </body>
