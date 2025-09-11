@@ -13,7 +13,7 @@ import Keyboard exposing (translateKey)
 import Task
 import Process
 import Storage exposing (guessesStorageKey, dailyWordStorageKey, storageHandlers)
-import Model exposing (Model, Msg(..), Guess, Outcome(..))
+import Model exposing (Model, Msg(..), Guess, Outcome(..), Score(..), scoreGuess, updateLetterScore)
 import Dict
 
 main : Program () Model Msg
@@ -32,6 +32,7 @@ init _ =
       , word = ""
       , currentGuess = ""
       , gameOutcome = Nothing
+      , guessedLetters = Dict.empty
       }
     , Cmd.batch
         [ runCmd (OnLoad guessesStorageKey)
@@ -54,9 +55,15 @@ runCmd msg =
     Task.succeed msg
         |> Task.perform identity
 
+runDelayedCmd : Float -> msg -> Cmd msg
+runDelayedCmd delay msg =
+    delay
+        |> Process.sleep
+        |> Task.perform (always msg)
+
 performDelayedMessage : msg -> Cmd msg
-performDelayedMessage msg =
-    transitionDelayMs * 6 |> Process.sleep |> Task.perform (always msg)
+performDelayedMessage =
+    runDelayedCmd (transitionDelayMs * 6)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -91,6 +98,8 @@ update msg model =
                 Submit ->
                     if String.length model.currentGuess == wordSize then
                         let
+                            newGuesses = model.guesses ++ [model.currentGuess]
+                            scoredDict = updateLetterScore { model | guesses = newGuesses }
                             isCorrectGuess = model.currentGuess == model.word
                             cmd = if isCorrectGuess then
                                     Cmd.batch
@@ -102,11 +111,15 @@ update msg model =
                                         [ performDelayedMessage (GameOver Lose)
                                         , LocalStorage.clear ()
                                         ]
-                                  else runCmd (Save (guessesStorageKey, String.join "," (model.guesses ++ [model.currentGuess])))
+                                  else
+                                    Cmd.batch
+                                        [ runCmd (Save (guessesStorageKey, String.join "," newGuesses))
+                                        , runDelayedCmd (transitionDelayMs * 5) (UpdateKeyboard scoredDict)
+                                        ]
                         in
                         ( { model
                             | currentGuess = ""
-                            , guesses = List.take maxGuesses (model.guesses ++ [model.currentGuess])
+                            , guesses = List.take maxGuesses newGuesses
                           }
                         , cmd
                         )
@@ -119,6 +132,8 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+        UpdateKeyboard scoredKeys ->
+            ( { model | guessedLetters = scoredKeys }, Cmd.none )
         GameOver outcome ->
             ( { model | gameOutcome = Just outcome }, Cmd.none )
 
@@ -154,11 +169,6 @@ renderCurrentGuess guess =
             |> String.toList
             |> List.map toTile
         ) ++ List.repeat padding emptyTile
-
-type Score
-    = Hit
-    | Miss
-    | Misplaced
 
 renderScoredGuess : String -> Guess -> Html msg
 renderScoredGuess word guess =
@@ -205,28 +215,6 @@ removeMisplacedIfHit word scoredGuess =
         )
         scoredGuess
 
-scoreGuess : String -> Guess -> List ( Char, Score )
-scoreGuess word guess =
-    let
-        wordChars = String.toList word
-        wordSet = Set.fromList wordChars
-        guessChars = String.toList guess
-    in
-    List.map2
-        (\wordChar guessChar ->
-            ( guessChar
-            , if guessChar == wordChar then
-                Hit
-              else if wordSet |> Set.member guessChar then
-                Misplaced
-              else
-                Miss
-            )
-        )
-        wordChars
-        guessChars
-
-
 wordleGrid : Model -> Html msg
 wordleGrid { guesses, currentGuess, word } =
     let
@@ -241,29 +229,43 @@ wordleGrid { guesses, currentGuess, word } =
             , List.repeat unusedGuesses emptyRow
             ]
 
-toKeys : String -> List (Html Msg)
-toKeys keys =
+toKeys : String -> Model -> List (Html Msg)
+toKeys keys model =
     let
-        toKey letter = key [ onClick <| TypeLetter (translateKey letter) ] [text <| String.fromChar letter]
+        coloredDict = Dict.map (\_ score ->
+            case score of
+                Hit -> hex "#538d4e"
+                Misplaced -> hex "#b59f3b"
+                Miss -> hex "#3a3a3c"
+            ) model.guessedLetters        
+        scoreToBackgroundColor letter =
+            coloredDict
+                |> Dict.get letter
+                |> Maybe.map (\color -> backgroundColor color)
+                |> Maybe.withDefault (backgroundColor (hex "#818384"))
+        toKey letter =
+            styled key [scoreToBackgroundColor letter]
+                [ onClick <| TypeLetter (translateKey letter) ]
+                [ text <| String.fromChar letter ]
     in    
     keys
         |> String.toList
         |> List.map toKey
 
-keyboard : Html Msg
-keyboard =
+keyboard : Model -> Html Msg
+keyboard model =
     keyboardContainer []
-        [ keyRow [] <| toKeys "qwertyuiop"
+        [ keyRow [] <| toKeys "qwertyuiop" model
         , keyRow [] <|
             List.concat 
                 [ [spacer [] []]
-                , toKeys "asdfghjkl"
+                , toKeys "asdfghjkl" model
                 , [spacer [] []]
                 ]
         , keyRow [] <| 
             List.concat
                 [ [ enterKey [onClick <| TypeLetter Submit] [text "Enter"] ]
-                , toKeys "zxcvbnm"
+                , toKeys "zxcvbnm" model
                 , [ deleteKey [onClick <| TypeLetter Delete] [text "⌫"] ]
                 ]
         ]
@@ -291,7 +293,7 @@ view model =
             , text model.word
             , gameOverModal model.gameOutcome
             , wordleGrid model
-            , keyboard
+            , keyboard model
             ]
         ]
   

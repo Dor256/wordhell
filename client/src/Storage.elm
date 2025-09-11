@@ -1,5 +1,5 @@
 module Storage exposing (guessesStorageKey, dailyWordStorageKey, storageHandlers)
-import Model exposing (Model, Msg)
+import Model exposing (Model, Msg, updateLetterScore)
 import Model exposing (Msg(..))
 import Api exposing (fetchWord)
 import Dict exposing (Dict)
@@ -20,6 +20,7 @@ updateGuesses maybeValue model =
             Maybe.map (\value -> { model
                 | guesses = model.guesses ++ String.split "," value
                 , currentGuess = ""
+                , guessedLetters = updateLetterScore { model | guesses = model.guesses ++ String.split "," value }
               }) maybeValue
     in
     ( newModel, Cmd.none )
