@@ -103,12 +103,14 @@ update msg model =
                             isCorrectGuess = model.currentGuess == model.word
                             cmd = if isCorrectGuess then
                                     Cmd.batch
-                                        [ performDelayedMessage (GameOver Win)
+                                        [ runDelayedCmd (transitionDelayMs * 5) (UpdateKeyboard scoredDict)
+                                        , performDelayedMessage (GameOver Win)
                                         , LocalStorage.clear ()
                                         ]
                                   else if List.length model.guesses + 1 >= maxGuesses then
                                     Cmd.batch
-                                        [ performDelayedMessage (GameOver Lose)
+                                        [ runDelayedCmd (transitionDelayMs * 5) (UpdateKeyboard scoredDict)
+                                        , performDelayedMessage (GameOver Lose)
                                         , LocalStorage.clear ()
                                         ]
                                   else
