@@ -182,8 +182,7 @@ keyboardContainer =
 key : HtmlElement msg
 key =
     styled div
-        [ backgroundColor (hex "#818384")
-        , fontWeight bold
+        [ fontWeight bold
         , margin4 (px 0) (px 6) (px 0) (px 0)
         , height (px 58)
         , borderRadius (px 4)
@@ -207,14 +206,16 @@ keyRow =
 enterKey : HtmlElement msg
 enterKey =
     styled key
-        [ flex (num 1.5)
+        [ backgroundColor (hex "#818384")
+        , flex (num 1.5)
         , padding2 (px 0) (px 5)
         ]
 
 deleteKey : HtmlElement msg
 deleteKey =
     styled key
-        [ flex (num 1.5)
+        [ backgroundColor (hex "#818384")
+        , flex (num 1.5)
         , fontSize (px 25)
         , padding2 (px 0) (px 5)
         ]
